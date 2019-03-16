@@ -8,6 +8,7 @@ import binascii
 
 ICMP_ECHO_REQUEST = 8
 
+
 def checksum(string): 
 	csum = 0
 	countTo = (len(string) // 2) * 2
@@ -28,6 +29,7 @@ def checksum(string):
 	answer = answer & 0xffff 
 	answer = answer >> 8 | (answer << 8 & 0xff00)
 	return answer
+
 	
 def receiveOnePing(mySocket, ID, timeout, destAddr):
 	timeLeft = timeout
@@ -50,6 +52,7 @@ def receiveOnePing(mySocket, ID, timeout, destAddr):
 		timeLeft = timeLeft - howLongInSelect
 		if timeLeft <= 0:
 			return "Request timed out."
+
 	
 def sendOnePing(mySocket, destAddr, ID):
 	# Header is type (8), code (8), checksum (16), id (16), sequence (16)
@@ -75,6 +78,7 @@ def sendOnePing(mySocket, destAddr, ID):
 	mySocket.sendto(packet, (destAddr, 1)) # AF_INET address must be tuple, not str
 	# Both LISTS and TUPLES consist of a number of objects
 	# which can be referenced by their position number within the object.
+
 	
 def doOnePing(destAddr, timeout): 
 	icmp = getprotobyname("icmp")
@@ -89,6 +93,7 @@ def doOnePing(destAddr, timeout):
 	
 	mySocket.close()
 	return delay
+
 	
 def ping(host, timeout=1):
 	# timeout=1 means: If one second goes by without a reply from the server,
@@ -102,5 +107,11 @@ def ping(host, timeout=1):
 		print(delay)
 		time.sleep(1)# one second
 	return delay
-	
-ping("google.com")
+
+
+def main():
+	ping("google.com")
+
+
+if __name__ =="__main__":
+	main()
