@@ -9,6 +9,8 @@ import argparse
 
 ICMP_ECHO_REQUEST = 8
 PACKET_SIZE = 192
+# format for signed char, signed char, unsigned short, unsigned short, short
+HEADER_FORMAT = "bbHHh"
 
 
 def checksum(string): 
@@ -46,6 +48,9 @@ def receiveOnePing(mySocket, ID, timeout, destAddr):
         timeReceived = time.time()
         recPacket, addr = mySocket.recvfrom(1024)
 
+        icmpHeader = recPacket[20:28]
+        type, code, checksum, packetID, sequence = struct.unpack(HEADER_FORMAT, icmpHeader)
+
            #Fill in start
         
             #Fetch the ICMP header from the IP packet
@@ -74,8 +79,7 @@ def sendOnePing(mySocket, destAddr, ID):
     # struct -- Interpret strings as packed binary data
 
     # format for signed char, signed char, unsigned short, unsigned short, short
-    header_format = "bbHHh"
-    header = struct.pack(header_format, ICMP_ECHO_REQUEST, 0, myChecksum, ID, 1)
+    header = struct.pack(HEADER_FORMAT, ICMP_ECHO_REQUEST, 0, myChecksum, ID, 1)
 
     # In the packet, we're going to send the timer as a double, the remaining bytes
     # can be anything
@@ -103,7 +107,7 @@ def sendOnePing(mySocket, destAddr, ID):
         myChecksum = htons(myChecksum)
 
     # now we can form the packet with the real checksum
-    header = struct.pack(header_format, ICMP_ECHO_REQUEST, 0, myChecksum, ID, 1)
+    header = struct.pack(HEADER_FORMAT, ICMP_ECHO_REQUEST, 0, myChecksum, ID, 1)
     packet = header + packet
     mySocket.sendto(packet, (destAddr, 1)) # AF_INET address must be tuple, not str
     # Both LISTS and TUPLES consist of a number of objects
