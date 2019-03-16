@@ -4,7 +4,8 @@ import sys
 import struct
 import time
 import select
-import binascii  
+import binascii
+import argparse
 
 ICMP_ECHO_REQUEST = 8
 
@@ -110,7 +111,13 @@ def ping(host, timeout=1):
 
 
 def main():
-	ping("google.com")
+	parser = argparse.ArgumentParser()
+	parser.add_argument("host_name", help="The server's hostname")
+	parser.parse_args()
+	args = parser.parse_args()
+	hostName = args.host_name
+
+	ping(hostName)
 
 
 if __name__ =="__main__":
