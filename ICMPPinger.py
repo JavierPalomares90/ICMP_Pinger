@@ -14,6 +14,9 @@ HEADER_SIZE_BITS = 192
 HEADER_FORMAT = "bbHHh"
 # The ICMP header starts after bit 160
 HEADER_START_BIT = 160
+# Header ends at bit 192
+HEADER_SIZE_BITS = 64
+
 BITS_IN_BYTE = 8
 
 BUF_SIZE = 1024
@@ -50,24 +53,24 @@ def receiveOnePing(mySocket, ID, timeout, destAddr):
         howLongInSelect = (time.time() - startedSelect)
         if whatReady[0] == []: # Timeout
             return "Request timed out."
+        timeLeft = timeLeft - howLongInSelect
+        if timeLeft <= 0:
+            return "Request timed out."
 
         timeReceived = time.time()
         recPacket, addr = mySocket.recvfrom(BUF_SIZE)
 
+        #Fetch the ICMP header from the IP packet
         headerStart = HEADER_START_BIT / BITS_IN_BYTE
-        headerEnd = (HEADER_START_BIT + HEADER_SIZE_BITS) / BITS_IN_BYTE
+        headerEnd = (HEADER_START_BIT + HEADER_SIZE_BITS)/ BITS_IN_BYTE
 
         icmpHeader = recPacket[headerStart:headerEnd]
         type, code, checksum, packetID, sequence = struct.unpack(HEADER_FORMAT, icmpHeader)
 
-           #Fill in start
+       #Fill in start
         
-            #Fetch the ICMP header from the IP packet
-        
+
         #Fill in end
-        timeLeft = timeLeft - howLongInSelect
-        if timeLeft <= 0:
-            return "Request timed out."
 
 
 # I found that my requests were timing out on Windows
@@ -89,12 +92,11 @@ def sendOnePing(mySocket, destAddr, ID):
     # struct -- Interpret strings as packed binary data
     type = ICMP_ECHO_REQUEST
     code = 0
-    checksum = myChecksum
     packedId = ID
     sequence = 1
 
     # format for signed char, signed char, unsigned short, unsigned short, short
-    header = struct.pack(HEADER_FORMAT, type, code, checksum, packedId, sequence)
+    header = struct.pack(HEADER_FORMAT, type, code, myChecksum, packedId, sequence)
 
     # In the packet, we're going to send the timer as a double, the remaining bytes
     # can be anything
@@ -123,12 +125,11 @@ def sendOnePing(mySocket, destAddr, ID):
 
     type = ICMP_ECHO_REQUEST
     code = 0
-    checksum = myChecksum
     packedId = ID
     sequence = 1
 
     # now we can form the packet with the real checksum
-    header = struct.pack(HEADER_FORMAT, type, code, checksum, packedId, sequence)
+    header = struct.pack(HEADER_FORMAT, type, code, myChecksum, packedId, sequence)
     packet = header + packet
     # AF_INET address must be tuple, not str
     mySocket.sendto(packet, (destAddr, 1))
