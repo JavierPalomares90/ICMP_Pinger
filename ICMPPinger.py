@@ -46,18 +46,19 @@ def checksum(string):
 
 def receiveOnePing(mySocket, ID, timeout, destAddr):
     timeLeft = timeout
+    timer = get_system_timer()
 
     while 1:
-        startedSelect = time.time()
+        startedSelect = timer()
         whatReady = select.select([mySocket], [], [], timeLeft)
-        howLongInSelect = (time.time() - startedSelect)
+        howLongInSelect = (timer() - startedSelect)
         if whatReady[0] == []: # Timeout
             return "Request timed out."
         timeLeft = timeLeft - howLongInSelect
         if timeLeft <= 0:
             return "Request timed out."
 
-        timeReceived = time.time()
+        timeReceived = timer()
         recPacket, addr = mySocket.recvfrom(BUF_SIZE)
 
         #Fetch the ICMP header from the IP packet
@@ -67,13 +68,21 @@ def receiveOnePing(mySocket, ID, timeout, destAddr):
         icmpHeader = recPacket[headerStart:headerEnd]
         type, code, checksum, packetID, sequence = struct.unpack(HEADER_FORMAT, icmpHeader)
 
-       #Fill in start
-        
+        # get the time when the ping was sent
+        double_format = "d"
+        double_byte_size = struct.calcsize(double_format)
+        start = headerEnd
+        end = start + double_byte_size
+
+        timer_data = recPacket[start:end]
+        timeSent = struct.unpack(double_format,timer_data)[0]
+        # round trip time
+        rtt = timeReceived - timeSent
+
 
         #Fill in end
 
 
-# I found that my requests were timing out on Windows
 def get_system_timer():
     if sys.platform == "win32":
         # On Windows, the best timer is time.clock()
@@ -98,19 +107,11 @@ def sendOnePing(mySocket, destAddr, ID):
     # format for signed char, signed char, unsigned short, unsigned short, short
     header = struct.pack(HEADER_FORMAT, type, code, myChecksum, packedId, sequence)
 
-    # In the packet, we're going to send the timer as a double, the remaining bytes
-    # can be anything
-
-    # return the bytesize of double
-    double_byteSize = struct.calcsize("d")
-    data_size = HEADER_SIZE_BITS - double_byteSize
-    # get the data to pack in the remainder of the packet
-    dummy_data = data_size * 'a'
-    dummy_data = dummy_data.encode()
-
+    # In the packet, we're going to send the timer as a double
+    double_format = "d"
     timer = get_system_timer()
     # get the packet to send
-    packet = struct.pack("d", timer()) + dummy_data
+    packet = struct.pack(double_format, timer())
 
     # Calculate the checksum on the header and packet
     myChecksum = checksum(str(header + packet))
