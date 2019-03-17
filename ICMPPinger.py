@@ -74,6 +74,8 @@ def receiveOnePing(mySocket, ID, timeout, destAddr):
         icmpHeader = recPacket[headerStart:headerEnd]
         type, code, checksum, packetId, sequence = struct.unpack(HEADER_FORMAT, icmpHeader)
         if type == ICMP_ECHO_REPLY and packetId == ID:
+            packet_size = len(recPacket)
+            
             # get the time when the ping was sent
             double_format = "d"
             double_byte_size = struct.calcsize(double_format)
@@ -157,8 +159,8 @@ def ping(host, timeout=1):
     # timeout=1 means: If one second goes by without a reply from the server,
     # the client assumes that either the client's ping or the server's pong is lost
     dest = gethostbyname(host)
-    print("Pinging " + dest + " using Python:")
-    print("")
+    #TODO: Where does 56(84) come from?
+    print("PING {}({}) 56(84) bytes of data.".format(host,dest))
     # Send ping requests to a server separated by approximately one second
     while 1 :
         delay = doOnePing(dest, timeout)
