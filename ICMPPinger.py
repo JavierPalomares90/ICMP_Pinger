@@ -8,6 +8,7 @@ import binascii
 import argparse
 
 ICMP_ECHO_REQUEST = 8
+ICMP_ECHO_REPLY = 0
 # Header size is 192 bits
 HEADER_SIZE_BITS = 192
 # Header format for signed char, signed char, unsigned short, unsigned short, short
@@ -18,8 +19,17 @@ HEADER_START_BIT = 160
 HEADER_SIZE_BITS = 64
 
 BITS_IN_BYTE = 8
-
 BUF_SIZE = 1024
+
+MILLIS_IN_SEC = 1000
+
+# define the timer to use as used in the timeit module
+if sys.platform == "win32":
+    # On Windows, the best timer is time.clock()
+    default_timer = time.clock
+else:
+    # On most other platforms the best timer is time.time()
+    default_timer = time.time
 
 
 def checksum(string): 
@@ -46,19 +56,15 @@ def checksum(string):
 
 def receiveOnePing(mySocket, ID, timeout, destAddr):
     timeLeft = timeout
-    timer = get_system_timer()
 
     while 1:
-        startedSelect = timer()
+        startedSelect = default_timer()
         whatReady = select.select([mySocket], [], [], timeLeft)
-        howLongInSelect = (timer() - startedSelect)
+        howLongInSelect = (default_timer() - startedSelect)
         if whatReady[0] == []: # Timeout
             return "Request timed out."
-        timeLeft = timeLeft - howLongInSelect
-        if timeLeft <= 0:
-            return "Request timed out."
 
-        timeReceived = timer()
+        timeReceived = default_timer()
         recPacket, addr = mySocket.recvfrom(BUF_SIZE)
 
         #Fetch the ICMP header from the IP packet
@@ -66,30 +72,22 @@ def receiveOnePing(mySocket, ID, timeout, destAddr):
         headerEnd = (HEADER_START_BIT + HEADER_SIZE_BITS)/ BITS_IN_BYTE
 
         icmpHeader = recPacket[headerStart:headerEnd]
-        type, code, checksum, packetID, sequence = struct.unpack(HEADER_FORMAT, icmpHeader)
+        type, code, checksum, packetId, sequence = struct.unpack(HEADER_FORMAT, icmpHeader)
+        if type == ICMP_ECHO_REPLY and packetId == ID:
+            # get the time when the ping was sent
+            double_format = "d"
+            double_byte_size = struct.calcsize(double_format)
+            start = headerEnd
+            end = start + double_byte_size
 
-        # get the time when the ping was sent
-        double_format = "d"
-        double_byte_size = struct.calcsize(double_format)
-        start = headerEnd
-        end = start + double_byte_size
-
-        timer_data = recPacket[start:end]
-        timeSent = struct.unpack(double_format,timer_data)[0]
-        # round trip time
-        rtt = timeReceived - timeSent
-
-
-        #Fill in end
-
-
-def get_system_timer():
-    if sys.platform == "win32":
-        # On Windows, the best timer is time.clock()
-        return time.clock
-    else:
-        # On most other platforms the best timer is time.time()
-        return time.time
+            timer_data = recPacket[start:end]
+            timeSent = struct.unpack(double_format,timer_data)[0]
+            # round trip time
+            rtt = timeReceived - timeSent
+            return rtt
+        timeLeft -= howLongInSelect
+        if timeLeft <= 0:
+            return "Request timed out."
 
 
 def sendOnePing(mySocket, destAddr, ID):
@@ -109,9 +107,8 @@ def sendOnePing(mySocket, destAddr, ID):
 
     # In the packet, we're going to send the timer as a double
     double_format = "d"
-    timer = get_system_timer()
     # get the packet to send
-    packet = struct.pack(double_format, timer())
+    packet = struct.pack(double_format, default_timer())
 
     # Calculate the checksum on the header and packet
     myChecksum = checksum(str(header + packet))
@@ -165,7 +162,7 @@ def ping(host, timeout=1):
     # Send ping requests to a server separated by approximately one second
     while 1 :
         delay = doOnePing(dest, timeout)
-        print(delay)
+        print("ping delay: {} millisecs".format(delay * MILLIS_IN_SEC))
         time.sleep(1)# one second
     return delay
 
