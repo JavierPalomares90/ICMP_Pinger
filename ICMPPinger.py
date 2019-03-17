@@ -8,9 +8,15 @@ import binascii
 import argparse
 
 ICMP_ECHO_REQUEST = 8
-PACKET_SIZE = 192
-# format for signed char, signed char, unsigned short, unsigned short, short
+# Header size is 192 bits
+HEADER_SIZE_BITS = 192
+# Header format for signed char, signed char, unsigned short, unsigned short, short
 HEADER_FORMAT = "bbHHh"
+# The ICMP header starts after bit 160
+HEADER_START_BIT = 160
+BITS_IN_BYTE = 8
+
+BUF_SIZE = 1024
 
 
 def checksum(string): 
@@ -46,9 +52,12 @@ def receiveOnePing(mySocket, ID, timeout, destAddr):
             return "Request timed out."
 
         timeReceived = time.time()
-        recPacket, addr = mySocket.recvfrom(1024)
+        recPacket, addr = mySocket.recvfrom(BUF_SIZE)
 
-        icmpHeader = recPacket[20:28]
+        headerStart = HEADER_START_BIT / BITS_IN_BYTE
+        headerEnd = (HEADER_START_BIT + HEADER_SIZE_BITS) / BITS_IN_BYTE
+
+        icmpHeader = recPacket[headerStart:headerEnd]
         type, code, checksum, packetID, sequence = struct.unpack(HEADER_FORMAT, icmpHeader)
 
            #Fill in start
@@ -70,6 +79,7 @@ def get_system_timer():
         # On most other platforms the best timer is time.time()
         return time.time
 
+
 def sendOnePing(mySocket, destAddr, ID):
 
     # initialize a dummy checksum with 0
@@ -77,22 +87,27 @@ def sendOnePing(mySocket, destAddr, ID):
     # Make a dummy header with a 0 checksum
     # Header is type (8), code (8), checksum (16), id (16), sequence (16)
     # struct -- Interpret strings as packed binary data
+    type = ICMP_ECHO_REQUEST
+    code = 0
+    checksum = myChecksum
+    packedId = ID
+    sequence = 1
 
     # format for signed char, signed char, unsigned short, unsigned short, short
-    header = struct.pack(HEADER_FORMAT, ICMP_ECHO_REQUEST, 0, myChecksum, ID, 1)
+    header = struct.pack(HEADER_FORMAT, type, code, checksum, packedId, sequence)
 
     # In the packet, we're going to send the timer as a double, the remaining bytes
     # can be anything
 
     # return the bytesize of double
     double_byteSize = struct.calcsize("d")
-    data_size = PACKET_SIZE - double_byteSize
+    data_size = HEADER_SIZE_BITS - double_byteSize
     # get the data to pack in the remainder of the packet
     dummy_data = data_size * 'a'
     dummy_data = dummy_data.encode()
 
     timer = get_system_timer()
-    # get the packe to send
+    # get the packet to send
     packet = struct.pack("d", timer()) + dummy_data
 
     # Calculate the checksum on the header and packet
@@ -106,12 +121,17 @@ def sendOnePing(mySocket, destAddr, ID):
 
         myChecksum = htons(myChecksum)
 
+    type = ICMP_ECHO_REQUEST
+    code = 0
+    checksum = myChecksum
+    packedId = ID
+    sequence = 1
+
     # now we can form the packet with the real checksum
-    header = struct.pack(HEADER_FORMAT, ICMP_ECHO_REQUEST, 0, myChecksum, ID, 1)
+    header = struct.pack(HEADER_FORMAT, type, code, checksum, packedId, sequence)
     packet = header + packet
-    mySocket.sendto(packet, (destAddr, 1)) # AF_INET address must be tuple, not str
-    # Both LISTS and TUPLES consist of a number of objects
-    # which can be referenced by their position number within the object.
+    # AF_INET address must be tuple, not str
+    mySocket.sendto(packet, (destAddr, 1))
 
 
 def doOnePing(destAddr, timeout): 
@@ -119,7 +139,12 @@ def doOnePing(destAddr, timeout):
     # SOCK_RAW is a powerful socket type. For more details:
 #    http://sock-raw.org/papers/sock_raw
 
-    my_socket = socket(AF_INET,SOCK_RAW,icmp)
+    try:
+        my_socket = socket(AF_INET,SOCK_RAW,icmp)
+    except error, (errno,msg):
+        if (errno == 1):
+            print(msg)
+            raise Exception("Socket error. Please execute as administrator/root.")
 
     myID = os.getpid() & 0xFFFF  # Return the current process i
     sendOnePing(my_socket,destAddr, myID)
