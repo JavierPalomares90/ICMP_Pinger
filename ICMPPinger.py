@@ -6,6 +6,7 @@ import time
 import select
 import binascii
 import argparse
+import numpy
 
 ICMP_ECHO_REQUEST = 8
 ICMP_ECHO_REPLY = 0
@@ -213,11 +214,11 @@ def main():
     hostName = args.host_name
 
     txPackets,rxPackets,delays = ping(hostName)
-    max_delay = 0
-    min_delay = 0
-    avg_delay = 0
+    max_delay = max(delays)
+    min_delay = min(delays)
+    avg_delay = sum(delays) / len(delays)
     std_dev_delay = 0
-    packet_loss = rxPackets / txPackets * 100.0
+    packet_loss = 100.0 - (rxPackets / txPackets * 100.0)
     print('--- {} ping statistics ---'.format(hostName))
     print("{} packets transmitted, {} packets received, {}% packet loss".format(txPackets,rxPackets,packet_loss))
     print("round-trip min/avg/max/stddev = {}/{}/{}/{} ms".format(min_delay,avg_delay,max_delay,std_dev_delay))
