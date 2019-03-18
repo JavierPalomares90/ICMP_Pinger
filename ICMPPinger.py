@@ -6,7 +6,7 @@ import time
 import select
 import binascii
 import argparse
-import numpy
+import numpy as np
 
 ICMP_ECHO_REQUEST = 8
 ICMP_ECHO_REPLY = 0
@@ -98,7 +98,7 @@ def receiveOnePing(mySocket, ID, timeout, destAddr):
             ttlPacket = recPacket[ttlStart:ttlEnd]
 
             signed_char_format = 'b'
-            ttl = struct.unpack(signed_char_format,ttlPacket)
+            ttl = struct.unpack(signed_char_format,ttlPacket)[0]
 
             return packet_size,addr,sequence,ttl,rtt
         timeLeft -= howLongInSelect
@@ -199,7 +199,7 @@ def ping(host, timeout=1):
                 rtt = data[4]
                 delay = rtt * MILLIS_IN_SEC
                 delays.append(delay)
-                print("{} bytes from {}: icmp_seq={} ttl={} time={} ms".format(num_bytes,addr,seq,ttl,delay))
+                print("{} bytes from {}: icmp_seq={} ttl={} time={} ms".format(num_bytes,addr[0],seq,ttl,delay))
             time.sleep(1)# one second
         except (KeyboardInterrupt,EOFError):
             # User hit ctrl-c
@@ -217,7 +217,7 @@ def main():
     max_delay = max(delays)
     min_delay = min(delays)
     avg_delay = sum(delays) / len(delays)
-    std_dev_delay = 0
+    std_dev_delay = np.std(delays)
     packet_loss = 100.0 - (rxPackets / txPackets * 100.0)
     print('--- {} ping statistics ---'.format(hostName))
     print("{} packets transmitted, {} packets received, {}% packet loss".format(txPackets,rxPackets,packet_loss))
