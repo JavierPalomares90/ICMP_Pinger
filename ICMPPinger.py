@@ -99,10 +99,11 @@ def receiveOnePing(mySocket, ID, timeout, destAddr):
             signed_char_format = 'b'
             ttl = struct.unpack(signed_char_format,ttlPacket)
 
-            return rtt
+            return packet_size,addr,sequence,ttl,rtt
         timeLeft -= howLongInSelect
         if timeLeft <= 0:
-            return "Request timed out."
+            # the request timed out
+            return None
 
 
 def sendOnePing(mySocket, destAddr, ID):
@@ -115,6 +116,7 @@ def sendOnePing(mySocket, destAddr, ID):
     type = ICMP_ECHO_REQUEST
     code = 0
     packedId = ID
+    #TODO: Should the sequence increase?
     sequence = 1
 
     # format for signed char, signed char, unsigned short, unsigned short, short
@@ -162,10 +164,10 @@ def doOnePing(destAddr, timeout):
 
     myID = os.getpid() & 0xFFFF  # Return the current process i
     sendOnePing(my_socket,destAddr, myID)
-    delay = receiveOnePing(my_socket, myID, timeout, destAddr)
+    data = receiveOnePing(my_socket, myID, timeout, destAddr)
 
     my_socket.close()
-    return delay
+    return data
 
 
 def ping(host, timeout=1):
@@ -175,11 +177,32 @@ def ping(host, timeout=1):
     #TODO: Where does 56(84) come from?
     print("PING {}({}) 56(84) bytes of data.".format(host,dest))
     # Send ping requests to a server separated by approximately one second
+    txPackets = 0
+    rxPackets = 0
+    delays = []
     while 1 :
-        delay = doOnePing(dest, timeout)
-        print("ping delay: {} millisecs".format(delay * MILLIS_IN_SEC))
-        time.sleep(1)# one second
-    return delay
+        try:
+            txPackets += 1
+            data = doOnePing(dest, timeout)
+            if not data:
+                # returned None. Assume the ping timed out
+                # TODO: How to get sequence?
+                seq = 1
+                print("Request timeout for icmp_seq {}".format(seq))
+            else:
+                rxPackets += 1
+                num_bytes = data[0]
+                addr = data[1]
+                seq = data[2]
+                ttl = data[3]
+                rtt = data[4]
+                delay = rtt * MILLIS_IN_SEC
+                delays.append(delay)
+                print("{} bytes from {}: icmp_seq={} ttl={} time={} ms".format(num_bytes,addr,seq,ttl,delay))
+            time.sleep(1)# one second
+        except (KeyboardInterrupt,EOFError):
+            # User hit ctrl-c
+            return txPackets,rxPackets,delays
 
 
 def main():
@@ -189,7 +212,15 @@ def main():
     args = parser.parse_args()
     hostName = args.host_name
 
-    ping(hostName)
+    txPackets,rxPackets,delays = ping(hostName)
+    max_delay = 0
+    min_delay = 0
+    avg_delay = 0
+    std_dev_delay = 0
+    packet_loss = rxPackets / txPackets * 100.0
+    print('--- {} ping statistics ---'.format(hostName))
+    print("{} packets transmitted, {} packets received, {}% packet loss".format(txPackets,rxPackets,packet_loss))
+    print("round-trip min/avg/max/stddev = {}/{}/{}/{} ms".format(min_delay,avg_delay,max_delay,std_dev_delay))
 
 
 if __name__ =="__main__":
