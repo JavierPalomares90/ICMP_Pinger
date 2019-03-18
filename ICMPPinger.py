@@ -18,6 +18,9 @@ HEADER_START_BIT = 160
 # Header ends at bit 192
 HEADER_SIZE_BITS = 64
 
+# TTL is found in the IP header starting at bit 64
+TTL_START_BIT = 64
+
 BITS_IN_BYTE = 8
 BUF_SIZE = 1024
 
@@ -86,6 +89,16 @@ def receiveOnePing(mySocket, ID, timeout, destAddr):
             timeSent = struct.unpack(double_format,timer_data)[0]
             # round trip time
             rtt = timeReceived - timeSent
+
+            # get the ttl
+            ttlStart = TTL_START_BIT / BITS_IN_BYTE
+            # ttl is 1 byte long
+            ttlEnd = ttlStart + 1
+            ttlPacket = recPacket[ttlStart:ttlEnd]
+
+            signed_char_format = 'b'
+            ttl = struct.unpack(signed_char_format,ttlPacket)
+
             return rtt
         timeLeft -= howLongInSelect
         if timeLeft <= 0:
