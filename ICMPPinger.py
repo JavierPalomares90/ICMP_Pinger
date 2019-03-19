@@ -155,6 +155,8 @@ def doOnePing(destAddr, timeout,sequence):
         if (errno == 1):
             print(msg)
             raise Exception("Socket error. Please execute as administrator/root.")
+        else:
+            raise error
 
     myID = os.getpid() & 0xFFFF  # Return the current process i
     sendOnePing(my_socket,destAddr, myID,sequence)
@@ -169,19 +171,22 @@ def ping(host, timeout=1):
     # the client assumes that either the client's ping or the server's pong is lost
     try:
         dest = gethostbyname(host)
-    except Exception,e:
-        raise Exception("Hostname {} unreachable: {}".format(host,str(e)))
+    except error,(errno,msg):
+        raise error("Hostname {} unreachable.\n Error code {} with msg: {}".format(host,errno,msg))
 
     print("PING {}({}).".format(host,dest))
     # Send ping requests to a server separated by approximately one second
     txPackets = 0
     rxPackets = 0
     delays = []
-    sequence = 0
+    sequence = 1
     while 1 :
         try:
             txPackets += 1
-            data = doOnePing(dest, timeout,sequence)
+            try:
+                data = doOnePing(dest, timeout,sequence)
+            except error, (errno, msg):
+                print("Ping to {} failed.\n Error code {} with msg: {}".format(host,errno,msg))
             if not data:
                 # returned None. Assume the ping timed out
                 print("Request timeout for icmp_seq {}".format(sequence))
