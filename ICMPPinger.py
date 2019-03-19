@@ -167,9 +167,12 @@ def doOnePing(destAddr, timeout,sequence):
 def ping(host, timeout=1):
     # timeout=1 means: If one second goes by without a reply from the server,
     # the client assumes that either the client's ping or the server's pong is lost
-    dest = gethostbyname(host)
-    #TODO: Where does 56(84) come from?
-    print("PING {}({}) 56(84) bytes of data.".format(host,dest))
+    try:
+        dest = gethostbyname(host)
+    except Exception,e:
+        raise Exception("Hostname {} unreachable: {}".format(host,str(e)))
+
+    print("PING {}({}).".format(host,dest))
     # Send ping requests to a server separated by approximately one second
     txPackets = 0
     rxPackets = 0
@@ -181,9 +184,7 @@ def ping(host, timeout=1):
             data = doOnePing(dest, timeout,sequence)
             if not data:
                 # returned None. Assume the ping timed out
-                # TODO: How to get sequence?
-                seq = 1
-                print("Request timeout for icmp_seq {}".format(seq))
+                print("Request timeout for icmp_seq {}".format(sequence))
             else:
                 rxPackets += 1
                 num_bytes = data[0]
