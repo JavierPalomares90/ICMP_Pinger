@@ -66,7 +66,7 @@ def receiveOnePing(mySocket, ID, timeout, destAddr):
         whatReady = select.select([mySocket], [], [], timeLeft)
         howLongInSelect = (default_timer() - startedSelect)
         if whatReady[0] == []: # Timeout
-            return "Request timed out."
+            return None
 
         timeReceived = default_timer()
         recPacket, addr = mySocket.recvfrom(BUF_SIZE)
@@ -215,14 +215,15 @@ def main():
     hostName = args.host_name
 
     txPackets,rxPackets,delays = ping(hostName)
-    max_delay = max(delays)
-    min_delay = min(delays)
-    avg_delay = sum(delays) / len(delays)
-    std_dev_delay = np.std(delays)
     packet_loss = 100.0 - (rxPackets / txPackets * 100.0)
     print('--- {} ping statistics ---'.format(hostName))
     print("{} packets transmitted, {} packets received, {}% packet loss".format(txPackets,rxPackets,packet_loss))
-    print("round-trip min/avg/max/stddev = {:.3f}/{:.3f}/{:.3f}/{:.3f} ms".format(min_delay,avg_delay,max_delay,std_dev_delay))
+    if delays:
+        max_delay = max(delays)
+        min_delay = min(delays)
+        avg_delay = sum(delays) / len(delays)
+        std_dev_delay = np.std(delays)
+        print("round-trip min/avg/max/stddev = {:.3f}/{:.3f}/{:.3f}/{:.3f} ms".format(min_delay,avg_delay,max_delay,std_dev_delay))
 
 
 if __name__ =="__main__":
