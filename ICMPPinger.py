@@ -193,7 +193,7 @@ def ping(host, timeout=1):
                 rtt = data[4]
                 delay = rtt * MILLIS_IN_SEC
                 delays.append(delay)
-                print("{} bytes from {}: icmp_seq={} ttl={} time={} ms".format(num_bytes,addr[0],seq,ttl,delay))
+                print("{} bytes from {}: icmp_seq={} ttl={} time={:.3f} ms".format(num_bytes,addr[0],seq,ttl,delay))
             sequence += 1
             time.sleep(1)# one second
         except (KeyboardInterrupt,EOFError):
@@ -216,7 +216,7 @@ def main():
     packet_loss = 100.0 - (rxPackets / txPackets * 100.0)
     print('--- {} ping statistics ---'.format(hostName))
     print("{} packets transmitted, {} packets received, {}% packet loss".format(txPackets,rxPackets,packet_loss))
-    print("round-trip min/avg/max/stddev = {}/{}/{}/{} ms".format(min_delay,avg_delay,max_delay,std_dev_delay))
+    print("round-trip min/avg/max/stddev = {:.3f}/{:.3f}/{:.3f}/{:.3f} ms".format(min_delay,avg_delay,max_delay,std_dev_delay))
 
 
 if __name__ =="__main__":
