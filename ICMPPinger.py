@@ -107,7 +107,7 @@ def receiveOnePing(mySocket, ID, timeout, destAddr):
             return None
 
 
-def sendOnePing(mySocket, destAddr, ID):
+def sendOnePing(mySocket, destAddr, ID,sequence):
 
     # initialize a dummy checksum with 0
     myChecksum = 0
@@ -117,8 +117,6 @@ def sendOnePing(mySocket, destAddr, ID):
     type = ICMP_ECHO_REQUEST
     code = 0
     packedId = ID
-    #TODO: Should the sequence increase?
-    sequence = 1
 
     # format for signed char, signed char, unsigned short, unsigned short, short
     header = struct.pack(HEADER_FORMAT, type, code, myChecksum, packedId, sequence)
@@ -139,11 +137,6 @@ def sendOnePing(mySocket, destAddr, ID):
 
         myChecksum = htons(myChecksum)
 
-    type = ICMP_ECHO_REQUEST
-    code = 0
-    packedId = ID
-    sequence = 1
-
     # now we can form the packet with the real checksum
     header = struct.pack(HEADER_FORMAT, type, code, myChecksum, packedId, sequence)
     packet = header + packet
@@ -151,7 +144,7 @@ def sendOnePing(mySocket, destAddr, ID):
     mySocket.sendto(packet, (destAddr, 1))
 
 
-def doOnePing(destAddr, timeout): 
+def doOnePing(destAddr, timeout,sequence):
     icmp = getprotobyname("icmp")
     # SOCK_RAW is a powerful socket type. For more details:
 #    http://sock-raw.org/papers/sock_raw
@@ -164,7 +157,7 @@ def doOnePing(destAddr, timeout):
             raise Exception("Socket error. Please execute as administrator/root.")
 
     myID = os.getpid() & 0xFFFF  # Return the current process i
-    sendOnePing(my_socket,destAddr, myID)
+    sendOnePing(my_socket,destAddr, myID,sequence)
     data = receiveOnePing(my_socket, myID, timeout, destAddr)
 
     my_socket.close()
@@ -181,10 +174,11 @@ def ping(host, timeout=1):
     txPackets = 0
     rxPackets = 0
     delays = []
+    sequence = 0
     while 1 :
         try:
             txPackets += 1
-            data = doOnePing(dest, timeout)
+            data = doOnePing(dest, timeout,sequence)
             if not data:
                 # returned None. Assume the ping timed out
                 # TODO: How to get sequence?
@@ -200,6 +194,7 @@ def ping(host, timeout=1):
                 delay = rtt * MILLIS_IN_SEC
                 delays.append(delay)
                 print("{} bytes from {}: icmp_seq={} ttl={} time={} ms".format(num_bytes,addr[0],seq,ttl,delay))
+            sequence += 1
             time.sleep(1)# one second
         except (KeyboardInterrupt,EOFError):
             # User hit ctrl-c
